@@ -1,0 +1,76 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Mhill888
+//@version=6
+indicator("Volume Pressure", overlay=false)
+
+
+//--- variables
+
+lenSmooth = input.int(14, "Smoothing length", minval=1)
+lenZ      = input.int(200, "Lookback length", minval=20)
+useLogVol = input.bool(true, "Use log volume")
+showSignals   = input.bool(false, "Show direction markers")
+showZero   = input.bool(true, "Show zero line")
+showBands   = input.bool(true, "Show bands normal")
+showBandsH   = input.bool(true, "Show bands high volatility")
+
+//--- maths
+
+// wick ratio - body range divided by total range
+wickR = (close - open) / (high - low)
+
+// volume weighting
+logV = math.log(volume)
+
+// candle range * volume
+volRange = (wickR * logV)
+
+// cumulative value
+var float volRangeSum = na
+volRangeSum := na(volRangeSum) ? volRange : (volRangeSum + volRange)
+
+// exponential average of cumulative value
+sm = ta.ema(volRangeSum, lenSmooth)
+
+// simple average of exponential average of cumulative value
+mean  = ta.sma(sm, lenZ)
+// standard deviation of exponential average of cumulative value
+stdev = ta.stdev(sm, lenZ)
+// if stdev is 0 z is 0, else z is ->
+// exponential average of cumulative value - simple average of exponential average of cumulative value
+// divided by the standard deviation
+
+z     = stdev == 0 ? 0 : (sm - mean) / stdev
+
+// candles
+zOpen  = nz(z[1])
+zClose = z
+zHigh  = math.max(zOpen, zClose)
+zLow   = math.min(zOpen, zClose)
+
+bull = zClose >= zOpen and zClose - zOpen > 0.05
+bear = zClose < zOpen and zOpen - zClose > 0.05
+
+//-----
+// plot
+//-----
+plotcandle(
+     open=zOpen, high=zHigh, low=zLow, close=zClose,
+     title="Volume Candles",
+     color=bull ? color.new(color.teal, 0) : bear ? color.red : color.gray ,
+     wickcolor=color.new(color.gray, 40),
+     bordercolor=bull ? color.new(color.teal, 0) : bear ? color.red : color.gray 
+)
+
+plot(showZero ? 0 : na, "Zero", color=color.new(color.gray, 10), linewidth=1)
+plot(showBands and z >= 0 ?  3 : na, color=color.new(color.teal, 10), show_last = 10, linewidth = 2)
+plot(showBands and z <= 0 ? -3 : na, color=color.new(color.red, 10), show_last = 10, linewidth = 2)
+plot(showBandsH and z > 2 ?  4 : na, color=color.new(color.teal, 10), show_last = 10, linewidth = 2)
+plot(showBandsH and z < -2 ? -4 : na, color=color.new(color.red, 10), show_last = 10, linewidth = 2)
+
+// Signals: four bar reversal
+longSig  = zClose >= zOpen and zClose[1] >= zOpen[1] and zClose[2] >= zOpen[2] and zClose[3] >= zOpen[3] and zClose[4] < zOpen[4]
+shortSig = zClose < zOpen and zClose[1] < zOpen[1] and zClose[2] < zOpen[2] and zClose[3] < zOpen[3] and zClose[4] >= zOpen[4]
+
+plotshape(showSignals and longSig,  title="Up Pressure",   style=shape.triangleup,   location=location.top, size=size.tiny, color=color.new(color.teal, 0))
+plotshape(showSignals and shortSig, title="Down Pressure", style=shape.triangledown, location=location.top,    size=size.tiny, color=color.new(color.red, 0))
