@@ -43,13 +43,16 @@ stdev = ta.stdev(sm, lenZ)
 z     = stdev == 0 ? 0 : (sm - mean) / stdev
 
 // candles
-zOpen  = nz(z[1])
+zOpen  = 0
 zClose = z
 zHigh  = math.max(zOpen, zClose)
 zLow   = math.min(zOpen, zClose)
 
-bull = zClose >= zOpen and zClose - zOpen > 0.05
-bear = zClose < zOpen and zOpen - zClose > 0.05
+bull = zClose >= zClose[1] and zClose >= 0
+fadingBull = zClose < zClose[1] and zClose >= 0
+bear = zClose < zClose[1] and zClose <0
+
+
 
 //-----
 // plot
@@ -57,20 +60,7 @@ bear = zClose < zOpen and zOpen - zClose > 0.05
 plotcandle(
      open=zOpen, high=zHigh, low=zLow, close=zClose,
      title="Volume Candles",
-     color=bull ? color.new(color.teal, 0) : bear ? color.red : color.gray ,
+     color=bull ? color.new(color.teal, 0) : bear ? color.red : fadingBull ? color.new(color.teal, 50) : color.new(color.red, 50),
      wickcolor=color.new(color.gray, 40),
-     bordercolor=bull ? color.new(color.teal, 0) : bear ? color.red : color.gray 
+     bordercolor=bull ? color.new(color.teal, 0) : bear ? color.red : fadingBull ?  color.new(color.teal, 50) : color.new(color.red, 50)
 )
-
-plot(showZero ? 0 : na, "Zero", color=color.new(color.gray, 10), linewidth=1)
-plot(showBands and z >= 0 ?  3 : na, color=color.new(color.teal, 10), show_last = 10, linewidth = 2)
-plot(showBands and z <= 0 ? -3 : na, color=color.new(color.red, 10), show_last = 10, linewidth = 2)
-plot(showBandsH and z > 2 ?  4 : na, color=color.new(color.teal, 10), show_last = 10, linewidth = 2)
-plot(showBandsH and z < -2 ? -4 : na, color=color.new(color.red, 10), show_last = 10, linewidth = 2)
-
-// Signals: four bar reversal
-longSig  = zClose >= zOpen and zClose[1] >= zOpen[1] and zClose[2] >= zOpen[2] and zClose[3] >= zOpen[3] and zClose[4] < zOpen[4]
-shortSig = zClose < zOpen and zClose[1] < zOpen[1] and zClose[2] < zOpen[2] and zClose[3] < zOpen[3] and zClose[4] >= zOpen[4]
-
-plotshape(showSignals and longSig,  title="Up Pressure",   style=shape.triangleup,   location=location.top, size=size.tiny, color=color.new(color.teal, 0))
-plotshape(showSignals and shortSig, title="Down Pressure", style=shape.triangledown, location=location.top,    size=size.tiny, color=color.new(color.red, 0))
